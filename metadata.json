@@ -1,0 +1,6 @@
+{
+  "name": "Kanso — Private Korea & Japan Journeys",
+  "description": "Curated after-hours sanctuary access, bespoke weather-aware itineraries, local hobby guild encounters, and live voice translation across Japan and South Korea.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
