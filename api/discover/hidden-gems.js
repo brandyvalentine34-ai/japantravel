@@ -1,10 +1,19 @@
-import type { Request, Response } from "express";
 import { Type } from "@google/genai";
-import { getAiClient } from "./shared.ts";
+import { getAiClient, getCachedValue, setCachedValue } from "../_shared.js";
 
-export async function discoverHiddenGemsHandler(req: Request, res: Response) {
+export async function discoverHiddenGemsHandler(req, res) {
   try {
-    const { city = "Kyoto", query = "quiet neighborhood craft coffee and ceramics studio" } = req.body;
+    const {
+      city = "Kyoto",
+      query = "quiet neighborhood craft coffee and ceramics studio",
+    } = req.body || {};
+
+    const cacheKey = `discover:${city}:${query}`;
+    const cached = getCachedValue(cacheKey);
+    if (cached) {
+      return res.status(200).json(cached);
+    }
+
     const ai = getAiClient();
 
     const response = await ai.models.generateContent({
@@ -50,20 +59,24 @@ Return JSON with an array of 3 spots, including name, neighborhood, category, wh
 
     const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
     const sources = groundingChunks
-      .map((c: any) => ({
+      .map((c) => ({
         title: c.web?.title || "Verified Web Source",
         uri: c.web?.uri || "",
       }))
-      .filter((s: any) => Boolean(s.uri));
+      .filter((s) => Boolean(s.uri));
 
     const parsed = JSON.parse(response.text || '{"spots":[]}');
-    res.json({
+    const result = {
       spots: parsed.spots || [],
       sources,
-    });
-  } catch (err: any) {
-    res.status(500).json({
+    };
+    setCachedValue(cacheKey, result, 5 * 60 * 1000);
+    return res.status(200).json(result);
+  } catch (err) {
+    return res.status(500).json({
       error: err?.message || "Failed to search live local spots.",
     });
   }
 }
+
+export default discoverHiddenGemsHandler;

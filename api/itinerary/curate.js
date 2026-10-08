@@ -1,8 +1,7 @@
-import type { Request, Response } from "express";
 import { Type } from "@google/genai";
-import { getAiClient } from "./shared.ts";
+import { getAiClient, getCachedValue, setCachedValue } from "../_shared.js";
 
-export async function curateItineraryHandler(req: Request, res: Response) {
+export async function curateItineraryHandler(req, res) {
   try {
     const {
       destination = "Kyoto",
@@ -12,7 +11,13 @@ export async function curateItineraryHandler(req: Request, res: Response) {
       pace = "Unhurried",
       weatherCondition = "Clear Sky",
       indoorPreferred = false,
-    } = req.body;
+    } = req.body || {};
+
+    const cacheKey = `curate:${destination}:${travelerGroup}:${durationDays}:${interests.join(",")}:${pace}:${weatherCondition}:${indoorPreferred}`;
+    const cached = getCachedValue(cacheKey);
+    if (cached) {
+      return res.status(200).json(cached);
+    }
 
     const ai = getAiClient();
     const prompt = `Create a ${durationDays}-day bespoke, crowd-free itinerary for ${destination} tailored to a ${travelerGroup} seeking an "${pace}" pace.
@@ -104,10 +109,14 @@ Requirements:
     if (!text) {
       throw new Error("Empty response from itinerary synthesis model.");
     }
-    res.json(JSON.parse(text));
-  } catch (err: any) {
-    res.status(500).json({
+    const parsed = JSON.parse(text);
+    setCachedValue(cacheKey, parsed, 5 * 60 * 1000);
+    return res.status(200).json(parsed);
+  } catch (err) {
+    return res.status(500).json({
       error: err?.message || "Failed to synthesize bespoke itinerary.",
     });
   }
 }
+
+export default curateItineraryHandler;

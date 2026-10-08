@@ -1,14 +1,19 @@
-import type { Request, Response } from "express";
 import { Type } from "@google/genai";
-import { getAiClient } from "./shared.ts";
+import { getAiClient, getCachedValue, setCachedValue } from "./_shared.js";
 
-export async function translateTtsHandler(req: Request, res: Response) {
+export async function translateTtsHandler(req, res) {
   try {
     const {
       text = "Thank you for welcoming our family into your studio this evening.",
       targetLanguage = "Japanese",
       contextNote = "Speaking respectfully to a master artisan or host",
-    } = req.body;
+    } = req.body || {};
+
+    const cacheKey = `tts:${targetLanguage}:${contextNote}:${text}`;
+    const cached = getCachedValue(cacheKey);
+    if (cached) {
+      return res.status(200).json(cached);
+    }
 
     const ai = getAiClient();
 
@@ -33,7 +38,7 @@ Message: "${text}"`,
 
     const translated = JSON.parse(translationResponse.text || "{}");
 
-    let audioBase64: string | null = null;
+    let audioBase64 = null;
     try {
       const ttsResponse = await ai.models.generateContent({
         model: "gemini-3.8-flash-lite-tts",
@@ -65,13 +70,17 @@ Message: "${text}"`,
       audioBase64 = null;
     }
 
-    res.json({
+    const result = {
       ...translated,
       audioBase64,
-    });
-  } catch (err: any) {
-    res.status(500).json({
+    };
+    setCachedValue(cacheKey, result, 10 * 60 * 1000);
+    return res.status(200).json(result);
+  } catch (err) {
+    return res.status(500).json({
       error: err?.message || "Translation service encountered an error.",
     });
   }
 }
+
+export default translateTtsHandler;

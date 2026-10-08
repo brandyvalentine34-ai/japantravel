@@ -2,7 +2,12 @@ import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
-import { apiRouter } from "./api/index.ts";
+import { healthHandler } from "./api/health.js";
+import { weatherSeasonsHandler } from "./api/weather-seasons.js";
+import { seasonsExploreHandler } from "./api/seasons/explore.js";
+import { curateItineraryHandler } from "./api/itinerary/curate.js";
+import { discoverHiddenGemsHandler } from "./api/discover/hidden-gems.js";
+import { translateTtsHandler } from "./api/translate-tts.js";
 
 dotenv.config();
 
@@ -14,8 +19,13 @@ const PORT = 3000;
 
 app.use(express.json({ limit: "2mb" }));
 
-// Mount all API endpoints from /api
-app.use("/api", apiRouter);
+// Mount Vercel-compatible API handlers in local Express server
+app.get("/api/health", healthHandler);
+app.get("/api/weather-seasons", weatherSeasonsHandler);
+app.post("/api/seasons/explore", seasonsExploreHandler);
+app.post("/api/itinerary/curate", curateItineraryHandler);
+app.post("/api/discover/hidden-gems", discoverHiddenGemsHandler);
+app.post("/api/translate-tts", translateTtsHandler);
 
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
